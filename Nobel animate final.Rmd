@@ -13,6 +13,7 @@ library(lubridate)
 library(CoordinateCleaner)
 library(countrycode)
 library(gganimate)
+theme_set(theme_light())
 
 nobel_winners_raw <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-14/nobel_winners.csv")
 
@@ -71,7 +72,7 @@ cumsum_geo <- nobel_winners_geo %>%
   summarize(x = n())%>%
   ungroup()%>%
   group_by(birth_country)%>%
-  mutate(decade = paste0(decade,"-",decade+9),
+  mutate(decade = paste0(decade," - ",decade+9),
          value = ifelse(!is.na(centroid.lat),x,0),
          cumsum = as.integer(cumsum(value)),
          centroid.lon1 = centroid.lon,
@@ -84,14 +85,14 @@ cumsum_geo <- nobel_winners_geo %>%
 
   p <- ggplot(world)+
   geom_polygon(aes(x = long,y= lat,group = group),fill="orange",size = 1, color = "white")+
-  geom_text(data = cumsum_geo,aes(x=centroid.lon1,y=centroid.lat1,label = round(cumsum)),size = 6)+
+  geom_text(data = cumsum_geo,aes(x=centroid.lon1,y=centroid.lat1,label = round(cumsum)),size = 5)+
   borders("world")+
   coord_map(xlim=c(-180,180), ylim=c(-60, 90))+
   labs(x="",
        y="")+
   theme_void()+
     theme(plot.title = element_text(hjust = 0.5, vjust = 0.05, size=25)) +
-    theme(plot.subtitle = element_text(hjust = 0.5, vjust = 0.05,size=15))
+    theme(plot.subtitle = element_text(hjust = 0.5, vjust = 0.05,size=20))
     
 
 anim <- p +
@@ -102,7 +103,7 @@ anim <- p +
      subtitle = 'Current decade: {closest_state}')
 
 
-anim_save("nobel3.gif", anim, width = 1920, height = 1080)
+anim_save("nobel3.gif", anim, width = 1200, height = 820)
 ```
 
 
