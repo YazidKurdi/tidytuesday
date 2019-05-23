@@ -1,0 +1,104 @@
+---
+title: "Untitled"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(tidyverse)
+library(scales)
+library(countrycode)
+library(plotly)
+library(ggthemes)
+library(htmlwidgets)
+
+map_data("world")
+coast_vs_waste <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-21/coastal-population-vs-mismanaged-plastic.csv")%>%
+  janitor::clean_names()
+
+mismanaged_vs_gdp <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-21/per-capita-mismanaged-plastic-waste-vs-gdp-per-capita.csv")%>%
+  janitor::clean_names()%>%
+  rename(country = entity)
+
+waste_vs_gdp <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-21/per-capita-plastic-waste-vs-gdp-per-capita.csv")%>%
+  janitor::clean_names()
+```
+
+```{r}
+continents <-countrycode::codelist_panel%>%
+  transmute(country = country.name.en,continent)%>%
+  distinct(country,.keep_all = TRUE)
+
+#by_country <- mismanaged_vs_gdp%>%
+  #left_join(continents)%>%
+  #group_by(country,continent)%>%
+  #summarize(meanplastic = mean(per_capita_mismanaged_plastic_waste_kilograms_per_person_per_day,na.rm = TRUE),
+        #    meangdp = mean(gdp_per_capita_ppp_constant_2011_international_rate,na.rm = TRUE))%>%
+#filter(!is.na(meanplastic),!is.na(meangdp),!is.na(continent),country != "Brunei")
+
+world_mean <- by_country%>%
+  ungroup()%>%
+  summarize(mean(meanplastic))
+
+by_country <- mismanaged_vs_gdp %>%
+  filter(year == "2010")%>%
+  left_join(continents)%>%
+  rename(gdp_per_capita = gdp_per_capita_ppp_constant_2011_international_rate,
+         mismanged_plastic = per_capita_mismanaged_plastic_waste_kilograms_per_person_per_day)%>%
+  filter(!is.na(continent))
+
+
+p <- by_country%>%
+  ggplot(aes(gdp_per_capita,mismanged_plastic,color = continent,label = country))+
+  geom_point()+
+  geom_hline(aes(yintercept = 0.0498),linetype = "dashed",size=1, col = "#990000")+
+  geom_curve(aes(x = 120000, y = 0.062, xend = 100000, yend = 0.052),
+             arrow = arrow(length = unit(0.08, "inch")), size = 0.9,
+             color = "grey20", curvature = -0.3)+
+  scale_x_log10(labels = comma_format())+
+  scale_y_log10()+
+  labs(title = "Does GDP of a country have an effect over plastic waste?",
+           color = "",
+       x = "Log mean GDP",
+       y = "Log mismanaged plastic waste per capita(kg per day) in 2010",
+       caption =  "Countries that did not have a recorded GDP in the dataset were removed")+
+  annotate("text",x = 100000, y = 0.065, family = "Poppins", size = 4, color = "grey20",
+           label = "World Average")+
+  theme_light()+
+  theme(plot.title = element_text(hjust = 0.5, size = 18,face = "italic"),
+            legend.title = element_text(size = 15, face = "bold"),
+            legend.text = element_text(size = 13),
+            plot.caption = element_text(size = 13))
+  
+
+
+gdp_plotly <- ggplotly(p,tooltip = c("label","color","x","y"))%>% 
+ layout(annotations = 
+ list(x = 1, y = 0, text = "Countries that did not have a recorded GDP in the dataset were removed.", 
+      showarrow = F, xref='paper', yref='paper', 
+      xanchor='right', yanchor='auto', xshift=0, yshift=0,
+      font=list(size=15, color="red")))
+
+
+gdp_plotly$sizingPolicy$padding <- "0"
+
+
+saveWidget(gdp_plotly,
+           "GDP effect.html",     
+           selfcontained = FALSE,
+           libdir = "lib",
+           title = "GDP effect")
+
+saveWidget(gdp_plotly,"GDP effect.html")
+
+getwd()
+
+ggsave("2019-05-21/Plastic_Ratio_vs_GDP.png",gdp_ratio)
+
+
+```
+
