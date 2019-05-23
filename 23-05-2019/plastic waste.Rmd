@@ -88,16 +88,13 @@ gdp_plotly$sizingPolicy$padding <- "0"
 
 
 saveWidget(gdp_plotly,
-           "GDP effect.html",     
+           "GDP_effect.html",     
            selfcontained = FALSE,
            libdir = "lib",
            title = "GDP effect")
 
 saveWidget(gdp_plotly,"GDP effect.html")
 
-getwd()
-
-ggsave("2019-05-21/Plastic_Ratio_vs_GDP.png",gdp_ratio)
 
 
 ```
