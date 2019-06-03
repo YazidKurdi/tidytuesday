@@ -1,0 +1,293 @@
+---
+title: 'Drama Series Analysis'
+fontsize: 9pt
+output:
+  
+  html_document: default
+  pdf_document:
+   latex_engine: xelatex
+editor_options:
+  
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(out.height = "\\textheight",  out.width = "\\textwidth",fig.width=9, fig.height=5)
+```
+
+```{r include = FALSE}
+library(tidyverse)
+library(lubridate)
+library(broom)
+
+tv_ratings_raw <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-01-08/IMDb_Economist_tv_ratings.csv")
+  
+tv_ratings_processed <- tv_ratings_raw %>%
+  filter(!seasonNumber > 20)%>%
+    mutate(Drama = str_detect(genres,"Drama"),
+         Mystery = str_detect(genres,"Mystery"),
+         SciFi = str_detect(genres,"Sci-Fi"),
+         Adventure = str_detect(genres,"Adventure"),
+         Crime = str_detect(genres,"Crime"),
+         Action =str_detect(genres,"Action"),
+         Fantasy = str_detect(genres,"Fantasy"),
+         Romance = str_detect(genres,"Romance"),
+         Comedy = str_detect(genres,"Comedy"),
+         Biography = str_detect(genres,"Biography"),
+         Horror = str_detect(genres, "Horror"),
+         Thriller = str_detect(genres,"Thriller"),
+         Family = str_detect(genres,"Family"),
+         Sport = str_detect(genres,"Sport"),
+         History = str_detect(genres,"History"),
+         War = str_detect(genres,"War"),
+         Western = str_detect(genres,"Western"),
+         Animation = str_detect(genres,"Animation"),
+         Music = str_detect(genres,"Music"),
+         decade = 10 * floor(year(date)/10))
+
+tv_ratings_gathered <- tv_ratings_processed%>%
+  gather(type,value,-(titleId:genres),-decade)%>%
+  filter(value == 1, type != "Drama")
+
+```
+###Keep in mind that the analysis below is only about TV series that has a "Drama" genre attribute attached to it. With that said lets dive in!
+
+How are TV dramas doing over the last 28 years?.
+
+Could be due to an increase in interest of dramas, or due to an increase of improved quality of series in general.
+
+&nbsp; 
+
+&nbsp; 
+
+
+
+```{r echo = FALSE}
+  
+  tv_ratings_gathered%>%
+  group_by(year = year(date))%>%
+  summarize(avg_rating = mean(av_rating),n())%>%
+  ggplot(aes(year,avg_rating))+
+  geom_line(col = "light blue", size = 1.5)+
+  geom_point()+
+  labs(x = "",y = "Mean rating",
+       title = "Average rating for all TV dramas over the years")
+```
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+Histogram shows a normal distribution with a skewness to the left tail, mean and median are close,mean is used in the analysis.
+
+```{r echo=FALSE, warning= FALSE , message= FALSE}
+tv_ratings_gathered%>%
+ggplot(aes(av_rating))+
+  geom_histogram()+
+  geom_vline(xintercept =  8.075958,color = "red",lty = "dashed")+
+  geom_vline(xintercept = 8.112,color = "white",lty = "dashed")+
+  labs(x= "IMDb rating", y= "# of occurrence", 
+       title = "Histogram of ratings")
+```
+&nbsp; 
+
+How did our taste change ovetime based on Average rating?. 
+
+Most genres show no significant change, except for animation which has seen a rise in interest from the beginning of this decade. Another notable mentions is, War movies being assosciated with drama is a somewhat new combination of genres.
+
+&nbsp; 
+
+```{r echo = FALSE, message = FALSE}
+tv_ratings_gathered%>%
+ggplot(aes(date, av_rating))+
+  geom_line()+
+  geom_smooth()+
+  facet_wrap(~type)+
+  labs(x= "Date",y ="Average rating",
+       title = "Trend of genres overtime")
+
+```
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+How many series is the industry releasing per genre overtime?
+```{r echo = FALSE}
+tv_ratings_gathered%>%
+  count(type,date = year(date))%>%
+  ggplot(aes(x = date, y= n,col = type))+
+  geom_line()+
+  facet_wrap(~type)+
+  labs(x = "Date", y="# of series",title = "Number of series per genre being made overtime")
+
+```
+
+Lets look closer to the most occuring genres, Action, Crime and Fantasy show an increase of average rating overtime, while comedy and mystery show no significant change, and a slight decrease of average rating for romance.
+```{r echo = FALSE}
+
+
+tv_ratings_gathered%>%
+  mutate(type = fct_lump(type,6))%>%
+  group_by(type,decade)%>%
+  summarize(mean = mean(av_rating),number = n())%>%
+  arrange(desc(mean))%>%
+  ggplot(aes(x = decade,y=mean, col = type))+
+  geom_line()+
+  labs(x = "",y= "Average rating" , col = "Genre",
+       title = "How has our intrest shifted through the decades?")
+  
+
+```
+&nbsp; 
+
+Looking for a long Drama series?.
+
+These are the top 7 Drama series with more than 3 seasons, Game of Thrones takes the throne!
+```{r echo = FALSE}
+tv_ratings_processed%>%
+  group_by(title)%>%
+  summarize(meanrating= mean(av_rating),
+            number= n())%>%
+  filter(number >= 3)%>%
+  arrange(desc(meanrating))%>%
+  head(7)%>%
+  ggplot(aes(reorder(title,meanrating),meanrating,fill = title))+
+  geom_col(show.legend = FALSE)+
+  coord_flip(ylim=c(9.0,9.3))+
+  labs(x="",y="Average rating per series",
+       title = "Best rated series with 3 or more seasons")
+```
+
+###Which had the best rating per season?
+```{r echo = FALSE}
+tv_ratings_gathered%>%
+  group_by(title,seasonNumber)%>%
+  summarize(MaxRating = max(av_rating))%>%
+  arrange(desc(MaxRating))%>%
+  head(6)%>%
+  ungroup()%>%
+  mutate(title = paste0(title," - Season ",seasonNumber))%>%
+  ggplot(aes(reorder(title,MaxRating),MaxRating,fill = title))+
+  geom_col(show.legend = FALSE)+
+  coord_flip(ylim=c(9.4,9.7))+
+  labs(x= "", y = "Rating",
+       title = "Best season of all time?")
+              
+
+
+
+```
+
+&nbsp; 
+
+#Show survival
+##Was the increase in ratings contributed to the interest of viewers overtime, or was it contributed to  of experience of the producers on knowing when to cancel a bad series overtime?
+
+Before 2000, what this graph shows is that a rating of  "7-7.5" before 2000 had more than 60% chance of being renewed compared to a 33% chance after 2000, this could be contributed to the increase in competitiveness of series after 2000.
+
+We can see that a rating of 8 and more decreased the chance of a second season before 2000, while it increased after 2000, this could be the increase in expertise of the industry in knowing viewer preferences.
+
+```{r include= FALSE}
+show_survival <- tv_ratings_processed%>%
+  filter(seasonNumber <= 2)%>%
+  group_by(title)%>%
+  mutate(date_first_season = min(date))%>%
+  ungroup()%>%
+  transmute(titleId,
+            title,
+            date_first_season,
+            seasonNumber = paste0("season",seasonNumber),
+            av_rating)%>%
+  distinct(title,seasonNumber, .keep_all = TRUE)%>%
+  spread(seasonNumber,av_rating)%>%
+  filter(!is.na(season1))%>%
+  filter(date_first_season <= "2017-01-01")
+
+ 
+```
+
+
+```{r echo = FALSE}
+show_survival %>%
+  group_by(season1_bin = cut(season1,c(0,7,7.5,8,8.5,10)),
+           time_bin = ifelse(date_first_season <"2000-01-01","Before 2000","After 2000"))%>%
+  summarize(had_second_season = mean(!is.na(season2)),number = n())%>%
+ggplot(aes(season1_bin,had_second_season,group = time_bin,col = time_bin))+
+  geom_line()+
+  geom_point()+
+  scale_y_continuous(labels = scales:::percent_format())+
+  labs(x="Season 1 rating ranges", y = "Percentage of second season", col = "",
+       title = "Percentage of a series being continued to season 2 based on season 1")
+```
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+
+&nbsp; 
+Building a logistic regression model and testing it with outside data.
+
+The model shows what we expected, a higher rated series in 1990 had a lower chance of being continued to season 2 than in 2018, this emphasizes the increase in expertise of producers overtime.
+
+```{r echo = FALSE}
+new_data <- crossing(year = 1990:2018,
+                     season1 = seq(6,9))
+
+show_survival%>%
+  mutate(year = year(date_first_season),
+         had_second_season = !is.na(season2))%>%
+  glm(had_second_season ~ season1 * year ,data = ., family = "binomial")%>%
+  augment(newdata = new_data , type.predict = "response")%>%
+  ggplot(aes(year, .fitted, color = factor(season1)))+
+  geom_line()+
+  scale_y_continuous(labels = scales:::percent_format())+
+  labs(x ="Date",y = "Percentage of second season", col = "Rating",
+       title = "Percentage of season 2 based on rating")
+  
+
+
+  
+```
+
