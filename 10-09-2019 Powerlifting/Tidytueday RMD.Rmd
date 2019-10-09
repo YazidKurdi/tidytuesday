@@ -1,0 +1,104 @@
+---
+title: "Untitled"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(drlib)
+library(png)
+library(grid)
+library(gridExtra)
+library(lubridate)
+library(wesanderson)
+```
+
+```{r}
+ipf_lifts <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-08/ipf_lifts.csv")
+```
+
+
+```{r}
+ipf_lifts%>%
+  gather("category","value",sex,event,equipment,age_class,place,federation,meet_name)%>%
+  count(category,value,sort = TRUE)%>%
+  group_by(category)%>%
+  top_n(6,n)%>%
+  ungroup()%>%
+  mutate(value = reorder_within(value,n,category))%>%
+  ggplot(aes(value,n))+
+  geom_col()+
+  coord_flip()+
+  scale_x_reordered()+
+  facet_wrap(~category , scales = "free_y")
+
+ipf_lifts%>%
+  summarize_all(~mean(is.na(.)))
+
+per_decade_category <- ipf_lifts%>%
+  #filter_at(vars(10:12),all_vars(. > 0 & !is.na(.)))%>%
+  rename(Squat = best3squat_kg,Deadlift = best3deadlift_kg,Bench = best3bench_kg)%>%
+  gather("category","value",10:12)%>%
+  dplyr::select(date,category,value,sex)%>%
+  filter(!is.na(value))%>%
+  group_by(date = 10 * year(date) %/% 10,category,sex)%>%
+  summarize(mean = mean(value),
+            median = median(value),
+            observations = n())%>%
+  ungroup()
+
+#deadlift_png <- readPNG("/Users/USER10/Desktop/Tidytuesday lift/athlete-3491526_1280.png")
+#deadlift_grob <- rasterGrob(deadlift_png,width = 0.3,height = 2.7)
+
+#bench_png <- readPNG("/Users/USER10/Desktop/Tidytuesday lift/bench.png")
+#bench_grob <- rasterGrob(bench_png,width = 0.45,height = 2.7)
+
+#squat_png <- readPNG("/Users/USER10/Desktop/Tidytuesday lift/sport-285773_1280.png")
+#squat_grob <- rasterGrob(squat_png,width = 0.45,height = 2.7)
+
+
+annotation_custom2 <- 
+  function (grob, xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, data) 
+  {
+    layer(data = data, stat = StatIdentity, position = PositionIdentity, 
+          geom = ggplot2:::GeomCustomAnn,
+          inherit.aes = TRUE, params = list(grob = grob, 
+                                            xmin = xmin, xmax = xmax, 
+                                            ymin = ymin, ymax = ymax))
+  }
+
+final_plot <- per_decade_category %>%
+  mutate(sex = fct_relevel(sex,c("M","F")))%>%
+  ggplot(aes(date,mean,col = sex))+
+  geom_line()+
+  geom_point()+
+  ggrepel::geom_text_repel(aes(label = observations),show.legend = FALSE,size = 3.5)+
+  #geom_text(aes(label = observations,vjust = 1,hjust = 1),check_overlap = TRUE)+
+  facet_wrap(~category, scales = "free_y")+
+  labs(x = "",
+       y = "Average weight lifted in KG",
+       col = "Sex",
+       title = "Full Power (Bench-Deadlift-Squat) trend between both sexes",
+       subtitle = "Number indicate counts participated in IPF events")+
+  theme_minimal()+
+    theme(panel.background = element_rect(fill = wes_palettes$Zissou1[1], color = 'black', size = 0.5),
+        panel.grid.major = element_line(color = 'grey', linetype = 1),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(size = 0.1, linetype = "solid", colour = "black"),
+        strip.text.x = element_text(size = 15),
+        text = element_text(family = "serif"),axis.title.y = element_text(size = 12),
+        plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5))
+  #annotation_custom2(deadlift_grob, xmin=1970, xmax=2010, ymin=195, ymax=215,data = per_decade_category%>%filter(category == "Deadlift"))+
+ # annotation_custom2(squat_grob, xmin=1970, xmax=2010, ymin=185, ymax=205,data = per_decade_category%>%filter(category == "Squat"))
+
+ggsave(filename = "tidytuesdayplot.png",final_plot)
+```
+
+
